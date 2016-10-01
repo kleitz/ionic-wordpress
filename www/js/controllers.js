@@ -1,4 +1,4 @@
-angular.module('starter.controllers', [])
+angular.module('ionic_wordpress.controllers', [])
 
 .controller('AppCtrl', function($scope, $ionicModal, $timeout) {
 
