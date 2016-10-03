@@ -1,10 +1,17 @@
+angular.module('underscore', [])
+    .factory('_', function () {
+        return window._; // assumes underscore has already been loaded on the page
+    })
+;
 
-
-angular.module('ionic_wordpress', [
+angular.module('ionic-wordpress', [
     'ionic',
-    'ionic_wordpress.controllers',
-    'ionic_wordpress.services',
-    'ionic_wordpress.config'
+    'ionic-wordpress.directives',
+    'ionic-wordpress.controllers',
+    'ionic-wordpress.services',
+    'ionic-wordpress.config',
+    'ionic-wordpress.filters',
+    'underscore'
 ])
 
     .run(function ($ionicPlatform) {
@@ -33,42 +40,36 @@ angular.module('ionic_wordpress', [
                 controller: 'AppCtrl'
             })
 
-            .state('app.search', {
-                url: '/search',
+            .state('app.posts', {
+                url: '/posts',
                 views: {
                     'menuContent': {
-                        templateUrl: 'templates/search.html'
+                        templateUrl: 'templates/posts.html',
+                        controller: 'PostsCtrl'
                     }
                 }
             })
 
-            .state('app.browse', {
-                url: '/browse',
+            .state('app.post', {
+                url: "/post/:postId",
                 views: {
                     'menuContent': {
-                        templateUrl: 'templates/browse.html'
+                        templateUrl: "templates/post.html",
+                        controller: 'PostCtrl'
                     }
-                }
-            })
-            .state('app.playlists', {
-                url: '/playlists',
-                views: {
-                    'menuContent': {
-                        templateUrl: 'templates/playlists.html',
-                        controller: 'PlaylistsCtrl'
-                    }
-                }
-            })
+                },
+                resolve: {
+                    post_data: function (PostService, $ionicLoading, $stateParams) {
+                        $ionicLoading.show({
+                            template: 'Loading post ...'
+                        });
 
-            .state('app.single', {
-                url: '/playlists/:playlistId',
-                views: {
-                    'menuContent': {
-                        templateUrl: 'templates/playlist.html',
-                        controller: 'PlaylistCtrl'
+                        var postId = $stateParams.postId;
+                        return PostService.getPost(postId);
                     }
                 }
-            });
+            })
+            ;
         // if none of the above states are matched, use this as the fallback
-        $urlRouterProvider.otherwise('/app/playlists');
+        $urlRouterProvider.otherwise('/app/posts');
     });

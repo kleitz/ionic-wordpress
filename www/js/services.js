@@ -1,7 +1,7 @@
-angular.module('ionic_wordpress.services', [])
+angular.module('ionic-wordpress.services', [])
 
     // WP POSTS RELATED FUNCTIONS
-    .service('PostService', function ($rootScope, $http, $q, WORDPRESS_API_URL, AuthService, BookMarkService) {
+    .service('PostService', function ($rootScope, $http, $q, WORDPRESS_API_URL, AuthService) {
 
         this.getRecentPosts = function (page) {
             var deferred = $q.defer();
@@ -30,8 +30,11 @@ angular.module('ionic_wordpress.services', [])
                 '&insecure=cool' +
                 '&callback=JSON_CALLBACK')
                 .success(function (data) {
-                    var avatar_aux = data.avatar.replace("http:", "");
-                    var avatar = 'http:' + avatar_aux;
+                    var avatar = '';
+                    if(data.status == 'ok') {
+                        var avatar_aux = data.avatar.replace("http:", "");
+                        avatar = 'http:' + avatar_aux;
+                    }
 
                     deferred.resolve(avatar);
                 })
@@ -80,24 +83,6 @@ angular.module('ionic_wordpress.services', [])
             return deferred.promise;
         };
 
-        this.getPostsFromCategory = function (categoryId, page) {
-            var deferred = $q.defer();
-
-            $http.jsonp(WORDPRESS_API_URL + 'get_category_posts/' +
-                '?id=' + categoryId +
-                '&page=' + page +
-                '&insecure=cool' +
-                '&callback=JSON_CALLBACK')
-                .success(function (data) {
-                    deferred.resolve(data);
-                })
-                .error(function (data) {
-                    deferred.reject(data);
-                });
-
-            return deferred.promise;
-        };
-
         this.shortenPosts = function (posts) {
             //we will shorten the post
             //define the max length (characters) of your post content
@@ -112,215 +97,6 @@ angular.module('ionic_wordpress.services', [])
                 }
                 return post;
             });
-        };
-
-        this.sharePost = function (link) {
-            window.plugins.socialsharing.share('Check this post here: ', null, null, link);
-        };
-
-        this.bookmarkPost = function (post) {
-            BookMarkService.bookmarkPost(post);
-            $rootScope.$broadcast("new-bookmark", post);
-        };
-
-        this.getWordpressPage = function (page_slug) {
-            var deferred = $q.defer();
-
-            $http.jsonp(WORDPRESS_API_URL + 'get_page/' +
-                '?slug=' + page_slug +
-                '&insecure=cool' +
-                '&callback=JSON_CALLBACK')
-                .success(function (data) {
-                    deferred.resolve(data);
-                })
-                .error(function (data) {
-                    deferred.reject(data);
-                });
-            return deferred.promise;
-        };
-
-    })
-
-
-    // SEARCH MENU RELATED FUNCTIONS
-    .service('SearchService', function ($rootScope, $http, $q, WORDPRESS_API_URL) {
-
-        this.search = function (query) {
-
-            var search_results = [],
-                search_results_response = $q.defer(),
-                promises = [
-                    this.searchPosts(query),
-                    this.searchTags(query),
-                    this.searchAuthors(query)
-                ];
-
-            $q.all(promises).then(function (promises_values) {
-                _.map(promises_values, function (promise_value) {
-                    search_results.push({
-                        _id: promise_value.id,
-                        results: _.map(promise_value.posts, function (post) {
-                            return {
-                                title: post.title,
-                                id: post.id,
-                                date: post.date,
-                                excerpt: post.excerpt
-                            };
-                        })
-                    });
-                });
-                search_results_response.resolve(search_results);
-            });
-
-            return search_results_response.promise;
-        };
-
-        this.searchPosts = function (query) {
-            var deferred = $q.defer();
-
-            $http.jsonp(WORDPRESS_API_URL + 'get_search_results/' +
-                '?search=' + query +
-                '&insecure=cool' +
-                '&callback=JSON_CALLBACK')
-                .success(function (data) {
-                    var promise_value = {
-                        id: "posts",
-                        posts: data.posts
-                    };
-                    deferred.resolve(promise_value);
-                })
-                .error(function (data) {
-                    deferred.reject(data);
-                });
-            return deferred.promise;
-        };
-
-        this.searchTags = function (query) {
-            var tags_deferred = $q.defer(),
-                results_deferred = $q.defer();
-
-            //get all tags and filter the ones with the query in the title
-            $http.jsonp(WORDPRESS_API_URL + 'get_tag_index/' +
-                '?callback=JSON_CALLBACK')
-                .success(function (data) {
-                    var tags = _.filter(data.tags, function (tag) {
-                        return ((tag.title.indexOf(query) > -1));
-                        // || (tag.description.indexOf(query) > -1));
-                    });
-                    tags_deferred.resolve(tags);
-                })
-                .error(function (data) {
-                    tags_deferred.reject(data);
-                });
-
-            tags_deferred.promise.then(function (tags) {
-                //for each of the tags matching the query, bring the related posts
-                var tag_promises = _.map(tags, function (tag) {
-                    return $http.jsonp(WORDPRESS_API_URL + 'get_tag_posts/' +
-                        '?id=' + tag.id +
-                        '&callback=JSON_CALLBACK');
-                });
-
-                //prepare the response
-                $q.all(tag_promises).then(function (results) {
-                    var posts = [];
-                    _.map(results, function (result) {
-                        _.each(result.data.posts, function (post) {
-                            posts.push(post);
-                        });
-                    });
-                    var promise_value = {
-                        id: "tags",
-                        posts: posts
-                    };
-                    results_deferred.resolve(promise_value);
-                });
-            });
-
-            return results_deferred.promise;
-        };
-
-        this.searchAuthors = function (query) {
-            var authors_deferred = $q.defer(),
-                results_deferred = $q.defer();
-
-            //get all the authors and filter the ones with the query
-            $http.jsonp(WORDPRESS_API_URL + 'get_author_index/' +
-                '?callback=JSON_CALLBACK')
-                .success(function (data) {
-                    var authors = _.filter(data.authors, function (author) {
-                        return ((author.name.indexOf(query) > -1) || (author.nickname.indexOf(query) > -1) || (author.first_name.indexOf(query) > -1));
-                    });
-                    authors_deferred.resolve(authors);
-                })
-                .error(function (data) {
-                    authors_deferred.reject(data);
-                });
-
-            authors_deferred.promise.then(function (authors) {
-                //for each of the tags matching the query, bring the related posts
-                var author_promises = _.map(authors, function (author) {
-                    return $http.jsonp(WORDPRESS_API_URL + 'get_author_posts/' +
-                        '?id=' + author.id +
-                        '&callback=JSON_CALLBACK');
-                });
-
-                //prepare the response
-                $q.all(author_promises).then(function (results) {
-                    var posts = [];
-                    _.map(results, function (result) {
-                        _.each(result.data.posts, function (post) {
-                            posts.push(post);
-                        });
-                    });
-
-                    var promise_value = {
-                        id: "authors",
-                        posts: posts
-                    };
-                    results_deferred.resolve(promise_value);
-                });
-            });
-
-            return results_deferred.promise;
-        };
-    })
-
-    // BOOKMARKS FUNCTIONS
-    .service('BookMarkService', function (_) {
-        this.bookmarkPost = function (bookmark_post) {
-            var user_bookmarks = !_.isUndefined(window.localStorage.ionWordpress_bookmarks) ? JSON.parse(window.localStorage.ionWordpress_bookmarks) : [];
-
-            //check if this post is already saved
-            var existing_post = _.find(user_bookmarks, function (post) {
-                return post.id == bookmark_post.id;
-            });
-
-            if (!existing_post) {
-                user_bookmarks.push({
-                    id: bookmark_post.id,
-                    title: bookmark_post.title,
-                    date: bookmark_post.date,
-                    excerpt: bookmark_post.excerpt
-                });
-            }
-
-            window.localStorage.ionWordpress_bookmarks = JSON.stringify(user_bookmarks);
-        };
-
-        this.getBookmarks = function () {
-            return JSON.parse(window.localStorage.ionWordpress_bookmarks || '[]');
-        };
-
-        this.remove = function (id) {
-            var user_bookmarks = !_.isUndefined(window.localStorage.ionWordpress_bookmarks) ? JSON.parse(window.localStorage.ionWordpress_bookmarks) : [];
-
-            //check if this post is already saved
-            var remaining_posts = _.filter(user_bookmarks, function (bookmark) {
-                return bookmark.id != id;
-            });
-
-            window.localStorage.ionWordpress_bookmarks = JSON.stringify(remaining_posts);
         };
     })
 
@@ -340,6 +116,7 @@ angular.module('ionic_wordpress.services', [])
                 .error(function (data) {
                     deferred.reject(data);
                 });
+
             return deferred.promise;
         };
 
@@ -355,7 +132,7 @@ angular.module('ionic_wordpress.services', [])
 
             nonce_dfd.promise.then(function (nonce) {
                 //now that we have the nonce, ask for the new cookie
-                authService.generateAuthCookie(user.userName, user.password, nonce)
+                authService.generateAuthCookie(user.username, user.password, nonce)
                     .then(function (data) {
                         if (data.status == "error") {
                             // return error message
@@ -391,7 +168,7 @@ angular.module('ionic_wordpress.services', [])
                 });
 
             nonce_dfd.promise.then(function (nonce) {
-                authService.registerUser(user.userName, user.email,
+                authService.registerUser(user.username, user.email,
                     user.displayName, user.password, nonce)
                     .then(function (data) {
                         if (data.status == "error") {
