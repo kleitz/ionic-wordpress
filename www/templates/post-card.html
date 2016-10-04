@@ -6,12 +6,8 @@
     <div class="card-content" dynamic-anchor-fix ng-bind-html="post.content | rawHtml"></div>
 </div>
 <div class="card-footer">
-    <!--<a class="card-button secondary" ng-click="sharePost(post.url)">SHARE</a>-->
     <a class="card-button primary" ui-sref="app.post({postId :post.id})">READ MORE</a>
     <span ng-show="post.comment_count > 0" class="card-button comments">
         <i class="icon ion-chatbox"></i>{{post.comment_count}}
     </span>
-    <!--<a class="card-button secondary bookmark" ng-click="bookmarkPost(post)">-->
-        <!--<i class="icon ion-bookmark"></i>-->
-    <!--</a>-->
 </div>

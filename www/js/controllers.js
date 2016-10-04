@@ -42,8 +42,6 @@ angular.module('ionic-wordpress.controllers', [])
             AuthService.doLogin(user)
                 .then(function() {
                     //success
-                    $state.go('app.posts');
-
                     $ionicLoading.hide();
                     // Simulate a login delay. Remove this and replace with your login
                     // code if using a login system
